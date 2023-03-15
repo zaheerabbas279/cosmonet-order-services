@@ -1,0 +1,14 @@
+{
+    "order_type_id": 1,
+    "industry_id": 1,
+    "title": "rec1",
+    "order_content_type_id": 5,
+    "order_content_type_other": "something1",
+    "content_creator_id": 1,
+    "content_creator_other": "something1",
+    "keywords": "testing",
+    "words_id": 6,
+    "custom_words": 20000,
+    "images_id": 0,
+    "additional_comments": "tets"
+}

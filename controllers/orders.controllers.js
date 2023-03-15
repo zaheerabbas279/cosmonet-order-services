@@ -1,4 +1,5 @@
 const db = require("../db");
+const nodemailer = require("nodemailer");
 const axios = require("axios").default;
 const queryData = (sql_query) => {
   return new Promise((resolve, reject) => {
@@ -119,6 +120,113 @@ module.exports = {
         }
         res.status(200).send({ status: true, message: "OK", data: resp });
       });
+    });
+  },
+
+  changeStatusById: (req, res, next) => {
+    let _id = req.params.id;
+    let status = req.body.status;
+
+    if (status === "hold") {
+      // res.status(400).send({ status: false, message: "Status is on HOLD" });
+      let _sql = "UPDATE order_info SET order_status = ? WHERE id = ?";
+      db.query(_sql, [status, _id], (err, result) => {
+        if (err) {
+          res
+            .status(400)
+            .send({ status: false, message: "Error updating the status" });
+        }
+        db.query("SELECT * FROM order_info WHERE id = ?", _id, (err, resp) => {
+          if (err) {
+            res
+              .status(400)
+              .send({ status: false, message: "error finding the order" });
+          }
+
+          res.status(200).send({ status: true, message: "OK", data: resp });
+        });
+      });
+    } else {
+      let sql = "UPDATE order_info SET order_status = ? WHERE id = ?";
+      db.query(sql, [status, _id], (err, result) => {
+        if (err) {
+          res
+            .status(400)
+            .send({ status: false, message: "Error updating the status" });
+        }
+        db.query("SELECT * FROM order_info WHERE id = ?", _id, (err, resp) => {
+          if (err) {
+            res
+              .status(400)
+              .send({ status: false, message: "error finding the order" });
+          }
+
+          let mailTransporter = nodemailer.createTransport({
+            service: "gmail",
+            auth: {
+              user: "abbaszaheer216@gmail.com",
+              pass: "ypljjcxiysxmajda",
+            },
+          });
+          let mailDetails = {
+            from: "abbaszaheer216@gmail.com",
+            to: "abbaszaheer216@gmail.com",
+            subject: "Test mail",
+            text: "Test Mail from Cosmonet",
+          };
+          mailTransporter.sendMail(mailDetails, function (err, data) {
+            console.log("triggred");
+            if (err) {
+              console.log("Error Occurs");
+            } else {
+              console.log("Email sent successfully");
+            }
+          });
+          res.status(200).send({ status: true, message: "OK", data: resp });
+        });
+      });
+    }
+  },
+
+  // createOrderReqquirements :(req, res)
+
+  updateOrderRequirementsById: (req, res, next) => {
+    let _id = req.params.id;
+
+    let sql = `UPDATE order_requirement 
+    SET 
+    title ="${req.body.title}",
+    order_content_type_id = ${req.body.order_content_type_id},
+    content_creator_id = ${req.body.content_creator_id},
+    keywords = "${req.body.keywords}",
+    words_id = ${req.body.words_id},
+    images_id = ${req.body.images_id},
+    additional_comments = "${req.body.additional_comments}" 
+    WHERE id = ${req.params.id}`;
+
+    db.query(sql, (err, result) => {
+      if (err) {
+        res
+          .status(400)
+          .send({ status: false, message: "Error updating the status" });
+      }
+
+      db.query(
+        "SELECT * from order_requirement WHERE id = ?",
+        _id,
+        (err, resp) => {
+          if (err) {
+            res
+              .status(400)
+              .send({ status: false, message: "Error finding the order" });
+          }
+          res.status(200).send({
+            status: true,
+            message: "Updated Successfully",
+            data: resp,
+          });
+        }
+      );
     });
   },
 };
