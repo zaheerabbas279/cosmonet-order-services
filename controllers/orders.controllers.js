@@ -13,6 +13,31 @@ const queryData = (sql_query) => {
   });
 };
 
+const STATUS_ENUMS = {
+  ALLOT: "allot",
+  HOLD: "hold",
+  COMPLETE: "complete",
+};
+
+// taken an array of items, and also status
+const countStatus = (arrayOfItems, status) => {
+  return arrayOfItems?.filter((value) => value.status == status).length;
+};
+
+const getAllTotolStatus = (arrayOfStatus, status) => {
+  let rep = arrayOfStatus.reduce((prv, currentValue) => {
+    if (status == STATUS_ENUMS.ALLOT) {
+      return (prv += currentValue?.allotCount || 0);
+    } else if (status == STATUS_ENUMS.HOLD) {
+      return (prv += currentValue?.holdCount || 0);
+    } else if (status == STATUS_ENUMS.COMPLETE) {
+      return (prv += currentValue?.completeCount || 0);
+    }
+  }, 0);
+  //  console.log("🚀 ~ file: orders.controllers.js:33 ~ rep ~ rep:", rep)
+  return rep;
+};
+
 module.exports = {
   getOrderInfo: (req, res, next) => {
     let sql = "SELECT * from order_info";
@@ -61,7 +86,6 @@ module.exports = {
         on 
         oi.order_type_id = ot.id AND oi.project_goal_id = opg.id AND oi.voice_tone_id = otov.id`,
         async (err, result) => {
-          // db.query(`SELECT * FROM order_info join order_type on order_info.order_type_id = order_type.id`, (err, result) => {
           if (err) {
             res
               .status(400)
@@ -69,7 +93,6 @@ module.exports = {
           }
 
           let mappedRes = await result.map(async (item) => {
-            // console.log("🚀 ~ file: orders.controllers.js:71 ~ mappedRes ~ item:", item.user_id)
             if (item.order_status === "draft") {
               // ! do not send the result with status draft
               console.log("dont show the res");
@@ -79,21 +102,51 @@ module.exports = {
 
               const id = item.id;
               const _user_id = item.user_id;
+              let totalStatusCount = {
+                totalHold: 0,
+                totalCompleted: 0,
+                totalAssign: 0,
+              };
               const order_requirement_query = `SELECT * FROM order_requirement WHERE order_info_id = ${id}`;
               try {
                 let _result = await queryData(order_requirement_query);
                 let _resultUser = await axios.get(
                   `http://localhost:4000/user/userDataById/${_user_id}`
                 );
-                return { ...item, data: _result, user: _resultUser.data };
+
+                return {
+                  ...item,
+                  data: _result,
+                  user: _resultUser.data,
+                };
               } catch (error) {
                 console.log("errrr", error);
               }
-              console.log("show the res");
+              // console.log("show the res");
             }
           });
 
-          res.send({ status: true, data: await Promise.all(mappedRes) });
+          let data = await Promise.all(mappedRes);
+          let allStatusDetails = data.map((item) => {
+            let loopObj = {
+              allotCount: countStatus(item?.data, STATUS_ENUMS.ALLOT),
+              holdCount: countStatus(item?.data, STATUS_ENUMS.HOLD),
+              completeCount: countStatus(item?.data, STATUS_ENUMS.COMPLETE),
+            };
+            return loopObj;
+          });
+          // total status count
+          getAllTotolStatus(allStatusDetails, STATUS_ENUMS.ALLOT);
+          let status = {
+            allotCount: getAllTotolStatus(allStatusDetails, STATUS_ENUMS.ALLOT),
+            holdCount: getAllTotolStatus(allStatusDetails, STATUS_ENUMS.HOLD),
+            completeCount: getAllTotolStatus(
+              allStatusDetails,
+              STATUS_ENUMS.COMPLETE
+            ),
+          };
+          data.unshift(status);
+          res.send({ status: true, data });
         }
       );
     } catch (error) {
